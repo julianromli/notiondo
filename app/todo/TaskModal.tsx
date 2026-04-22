@@ -1,23 +1,22 @@
 'use client';
 
-import { useId, useState, type Dispatch, type SetStateAction } from 'react';
-import { Calendar, CheckCircle2, CheckSquare, Circle, Frame, X } from 'lucide-react';
+import { useId, useState } from 'react';
+import { AlignLeft, Calendar, CheckCircle2, CheckSquare, Circle, Frame, X } from 'lucide-react';
 import type { PriorityOption, ProjectOption, StatusOption, Task } from './types';
-import { newPriorityOption, newProjectOption, newStatusOption } from './types';
 import { Pill } from './DisplayPills';
 
 type TaskModalProps = {
   task: Task;
   mode?: 'create' | 'edit';
   onClose: () => void;
-  onUpdate: (id: string, updates: Partial<Task>) => void;
-  onAdd?: () => void;
+  onUpdate: (id: string, updates: Partial<Task>) => void | Promise<void>;
+  onAdd?: () => void | Promise<void>;
   statusOptions: StatusOption[];
-  setStatusOptions: Dispatch<SetStateAction<StatusOption[]>>;
   priorityOptions: PriorityOption[];
-  setPriorityOptions: Dispatch<SetStateAction<PriorityOption[]>>;
   projectOptions: ProjectOption[];
-  setProjectOptions: Dispatch<SetStateAction<ProjectOption[]>>;
+  onCreateStatusOption?: (label: string) => Promise<string>;
+  onCreatePriorityOption?: (label: string) => Promise<string>;
+  onCreateProjectOption?: (label: string) => Promise<string>;
 };
 
 export function TaskModal({
@@ -27,11 +26,11 @@ export function TaskModal({
   onUpdate,
   onAdd,
   statusOptions,
-  setStatusOptions,
   priorityOptions,
-  setPriorityOptions,
   projectOptions,
-  setProjectOptions,
+  onCreateStatusOption,
+  onCreatePriorityOption,
+  onCreateProjectOption,
 }: TaskModalProps) {
   const [newStatusName, setNewStatusName] = useState('');
   const [newPriorityName, setNewPriorityName] = useState('');
@@ -40,30 +39,27 @@ export function TaskModal({
   const pid = useId();
   const prid = useId();
 
-  const addStatus = () => {
+  const addStatus = async () => {
     const t = newStatusName.trim();
-    if (!t) return;
-    const o = newStatusOption(t);
-    setStatusOptions((prev) => [...prev, o]);
-    onUpdate(task.id, { statusId: o.id });
+    if (!t || !onCreateStatusOption) return;
+    const id = await onCreateStatusOption(t);
+    await Promise.resolve(onUpdate(task.id, { statusId: id }));
     setNewStatusName('');
   };
 
-  const addPriority = () => {
+  const addPriority = async () => {
     const t = newPriorityName.trim();
-    if (!t) return;
-    const o = newPriorityOption(t);
-    setPriorityOptions((prev) => [...prev, o]);
-    onUpdate(task.id, { priorityId: o.id });
+    if (!t || !onCreatePriorityOption) return;
+    const id = await onCreatePriorityOption(t);
+    await Promise.resolve(onUpdate(task.id, { priorityId: id }));
     setNewPriorityName('');
   };
 
-  const addProject = () => {
+  const addProject = async () => {
     const t = newProjectName.trim();
-    if (!t) return;
-    const o = newProjectOption(t);
-    setProjectOptions((prev) => [...prev, o]);
-    onUpdate(task.id, { projectIds: [...task.projectIds, o.id] });
+    if (!t || !onCreateProjectOption) return;
+    const id = await onCreateProjectOption(t);
+    await Promise.resolve(onUpdate(task.id, { projectIds: [...task.projectIds, id] }));
     setNewProjectName('');
   };
 
@@ -103,9 +99,23 @@ export function TaskModal({
             type="text"
             value={task.name}
             onChange={(e) => onUpdate(task.id, { name: e.target.value })}
-            className="text-4xl font-bold text-[#37352f] tracking-tight mb-8 w-full border-none outline-none bg-transparent placeholder-[#cccccc]"
+            className="text-4xl font-bold text-[#37352f] tracking-tight mb-4 w-full border-none outline-none bg-transparent placeholder-[#cccccc]"
             placeholder="Untitled Task"
           />
+
+          <div className="flex items-start gap-3 mb-8 max-w-xl">
+            <div className="w-[120px] text-sm text-[#787774] flex items-center gap-2 pt-2 shrink-0">
+              <AlignLeft className="w-4 h-4" />
+              Description
+            </div>
+            <textarea
+              value={task.description}
+              onChange={(e) => onUpdate(task.id, { description: e.target.value })}
+              rows={4}
+              placeholder="Add details…"
+              className="flex-1 text-sm text-[#37352f] bg-[#fbfbfa] border border-[#ececeb] rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-[#2383e2]/40 resize-y min-h-[96px]"
+            />
+          </div>
 
           <div className="space-y-4 max-w-sm">
             <div className="flex items-start min-h-[34px]">

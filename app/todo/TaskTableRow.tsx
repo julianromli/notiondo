@@ -1,7 +1,9 @@
 'use client';
 
-import { CheckSquare, MoreHorizontal } from 'lucide-react';
-import type { Dispatch, SetStateAction } from 'react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { CheckSquare, GripVertical, MoreHorizontal, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import type { OpenCell, PriorityOption, ProjectOption, StatusOption, Task } from './types';
 import { Pill, StatusIcon } from './DisplayPills';
 import { NotionSelectCell } from './NotionSelectCell';
@@ -14,11 +16,13 @@ export type TaskTableRowProps = {
   projectOptions: ProjectOption[];
   openCell: OpenCell;
   setOpenCell: Dispatch<SetStateAction<OpenCell>>;
-  onUpdate: (id: string, updates: Partial<Task>) => void;
+  onUpdate: (id: string, updates: Partial<Task>) => void | Promise<void>;
   onOpenDetail: () => void;
-  onAddStatusOption: (label: string) => string;
-  onAddPriorityOption: (label: string) => string;
-  onAddProjectOption: (label: string) => string;
+  onDelete: (id: string) => void | Promise<void>;
+  onAddStatusOption: (label: string) => string | Promise<string>;
+  onAddPriorityOption: (label: string) => string | Promise<string>;
+  onAddProjectOption: (label: string) => string | Promise<string>;
+  dragDisabled: boolean;
 };
 
 export function TaskTableRow({
@@ -30,20 +34,84 @@ export function TaskTableRow({
   setOpenCell,
   onUpdate,
   onOpenDetail,
+  onDelete,
   onAddStatusOption,
   onAddPriorityOption,
   onAddProjectOption,
+  dragDisabled,
 }: TaskTableRowProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuWrapRef = useRef<HTMLDivElement>(null);
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: task.id,
+    disabled: dragDisabled,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    // Source row hidden while DragOverlay shows the preview (better in scroll containers).
+    opacity: isDragging ? 0 : undefined,
+  };
+
   const toggleChecked = (e: React.MouseEvent) => {
     e.stopPropagation();
     onUpdate(task.id, { checked: !task.checked });
   };
 
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (menuWrapRef.current && !menuWrapRef.current.contains(e.target as Node)) closeMenu();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeMenu();
+    };
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [menuOpen, closeMenu]);
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    closeMenu();
+    void onDelete(task.id);
+  };
+
+  const dragTitle = dragDisabled
+    ? 'Reordering is available when sort is “Default” and the name filter is empty.'
+    : 'Drag to reorder';
+
   return (
     <div
+      ref={setNodeRef}
+      style={style}
       onClick={onOpenDetail}
       className="flex items-center text-sm py-2 border-b border-[#ececeb] hover:bg-[#fbfbfa] transition-colors group/row cursor-pointer"
     >
+      <div className="w-7 shrink-0 flex justify-center pl-1">
+        <button
+          type="button"
+          className={`p-0.5 rounded text-[#a5a4a2] hover:bg-[#efefed] hover:text-[#37352f] ${
+            dragDisabled ? 'cursor-not-allowed opacity-35' : 'cursor-grab active:cursor-grabbing'
+          }`}
+          title={dragTitle}
+          aria-label={dragTitle}
+          {...(dragDisabled ? {} : listeners)}
+          {...(dragDisabled ? {} : attributes)}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <GripVertical className="w-4 h-4" />
+        </button>
+      </div>
+
       <div className="w-[300px] flex items-center pl-2 min-w-0">
         <button
           type="button"
@@ -56,15 +124,20 @@ export function TaskTableRow({
         >
           {task.checked && <CheckSquare className="w-3.5 h-3.5 max-w-full" strokeWidth={3} />}
         </button>
-        <input
-          value={task.name}
-          onChange={(e) => onUpdate(task.id, { name: e.target.value })}
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-          className="font-medium text-[#37352f] bg-transparent border-none outline-none flex-1 min-w-0 py-0.5 rounded-sm focus:ring-1 focus:ring-[#2383e2]/40"
-          placeholder="Untitled"
-        />
+        <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+          <input
+            value={task.name}
+            onChange={(e) => onUpdate(task.id, { name: e.target.value })}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            className="font-medium text-[#37352f] bg-transparent border-none outline-none w-full min-w-0 py-0.5 rounded-sm focus:ring-1 focus:ring-[#2383e2]/40"
+            placeholder="Untitled"
+          />
+          {task.description.trim() ? (
+            <span className="text-xs text-[#a5a4a2] truncate">{task.description.trim()}</span>
+          ) : null}
+        </div>
       </div>
 
       <div className="w-[140px] flex items-center px-1 shrink-0">
@@ -134,14 +207,38 @@ export function TaskTableRow({
         />
       </div>
 
-      <div className="flex-1 flex justify-end pr-2 opacity-0 group-hover/row:opacity-100 transition-opacity">
-        <button
-          type="button"
-          className="p-1 hover:bg-[#efefed] rounded text-[#787774]"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <MoreHorizontal className="w-4 h-4" />
-        </button>
+      <div className="flex-1 flex justify-end pr-2 opacity-0 group-hover/row:opacity-100 transition-opacity relative">
+        <div className="relative" ref={menuWrapRef}>
+          <button
+            type="button"
+            className="p-1 hover:bg-[#efefed] rounded text-[#787774]"
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuOpen((o) => !o);
+            }}
+          >
+            <MoreHorizontal className="w-4 h-4" />
+          </button>
+          {menuOpen ? (
+            <div
+              role="menu"
+              className="absolute right-0 top-full z-50 mt-1 min-w-[140px] rounded-md border border-[#ececeb] bg-white py-1 shadow-lg"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-[#c63426] hover:bg-[#fbfbfa]"
+                onClick={handleDelete}
+              >
+                <Trash2 className="w-4 h-4 shrink-0" />
+                Delete
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );

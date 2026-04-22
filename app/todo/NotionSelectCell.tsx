@@ -23,7 +23,7 @@ type NotionSelectCellProps<T extends OptionBase> = {
   valueId: string;
   options: T[];
   onSelect: (id: string) => void;
-  onCreateOption: (label: string) => string;
+  onCreateOption: (label: string) => string | Promise<string>;
   renderPill: (opt: T | null) => ReactNode;
   className?: string;
 };
@@ -77,10 +77,10 @@ export function NotionSelectCell<T extends OptionBase>({
 
   const selected = (options as T[]).find((o) => o.id === valueId) ?? null;
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     const label = createInput.trim();
     if (!label) return;
-    const newId = onCreateOption(label);
+    const newId = await Promise.resolve(onCreateOption(label));
     setCreateInput('');
     onSelect(newId);
     onRequestClose();

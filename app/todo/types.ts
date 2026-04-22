@@ -29,6 +29,13 @@ export type ProjectOption = {
   color: ColorKey;
 };
 
+export type TodoAppUser = {
+  id: string;
+  name?: string | null;
+  email: string;
+  image?: string | null;
+};
+
 export type Task = {
   id: string;
   name: string;
@@ -38,6 +45,8 @@ export type Task = {
   projectIds: string[];
   due: string;
   group: 'Today' | 'This Week' | 'Later';
+  sortIndex: number;
+  description: string;
 };
 
 export const initialStatusOptions: StatusOption[] = [
@@ -60,15 +69,15 @@ export const initialProjectOptions: ProjectOption[] = [
 ];
 
 export const initialTasks: Task[] = [
-  { id: '1', name: 'Reply to emails', checked: false, statusId: 's-done', priorityId: 'p-medium', due: 'May 24, 2024', projectIds: ['pr-work'], group: 'Today' },
-  { id: '2', name: 'Review PR #42', checked: true, statusId: 's-done', priorityId: 'p-high', due: 'May 24, 2024', projectIds: ['pr-work'], group: 'Today' },
-  { id: '3', name: 'Update dashboard', checked: false, statusId: 's-in-progress', priorityId: 'p-high', due: 'May 24, 2024', projectIds: ['pr-work'], group: 'Today' },
-  { id: '4', name: 'Write blog post', checked: false, statusId: 's-not-started', priorityId: 'p-medium', due: 'May 26, 2024', projectIds: ['pr-content'], group: 'This Week' },
-  { id: '5', name: 'Prepare for client call', checked: false, statusId: 's-not-started', priorityId: 'p-high', due: 'May 28, 2024', projectIds: ['pr-work'], group: 'This Week' },
-  { id: '6', name: 'Redesign landing page', checked: false, statusId: 's-in-progress', priorityId: 'p-medium', due: 'May 30, 2024', projectIds: ['pr-design'], group: 'This Week' },
-  { id: '7', name: 'Book flight tickets', checked: false, statusId: 's-not-started', priorityId: 'p-low', due: 'June 5, 2024', projectIds: ['pr-personal'], group: 'Later' },
-  { id: '8', name: 'Learn Next.js', checked: false, statusId: 's-not-started', priorityId: 'p-low', due: 'June 10, 2024', projectIds: ['pr-personal'], group: 'Later' },
-  { id: '9', name: 'Plan summer trip', checked: false, statusId: 's-not-started', priorityId: 'p-medium', due: 'June 15, 2024', projectIds: ['pr-personal'], group: 'Later' },
+  { id: '1', name: 'Reply to emails', checked: false, statusId: 's-done', priorityId: 'p-medium', due: 'May 24, 2024', projectIds: ['pr-work'], group: 'Today', sortIndex: 0, description: '' },
+  { id: '2', name: 'Review PR #42', checked: true, statusId: 's-done', priorityId: 'p-high', due: 'May 24, 2024', projectIds: ['pr-work'], group: 'Today', sortIndex: 1, description: '' },
+  { id: '3', name: 'Update dashboard', checked: false, statusId: 's-in-progress', priorityId: 'p-high', due: 'May 24, 2024', projectIds: ['pr-work'], group: 'Today', sortIndex: 2, description: '' },
+  { id: '4', name: 'Write blog post', checked: false, statusId: 's-not-started', priorityId: 'p-medium', due: 'May 26, 2024', projectIds: ['pr-content'], group: 'This Week', sortIndex: 0, description: '' },
+  { id: '5', name: 'Prepare for client call', checked: false, statusId: 's-not-started', priorityId: 'p-high', due: 'May 28, 2024', projectIds: ['pr-work'], group: 'This Week', sortIndex: 1, description: '' },
+  { id: '6', name: 'Redesign landing page', checked: false, statusId: 's-in-progress', priorityId: 'p-medium', due: 'May 30, 2024', projectIds: ['pr-design'], group: 'This Week', sortIndex: 2, description: '' },
+  { id: '7', name: 'Book flight tickets', checked: false, statusId: 's-not-started', priorityId: 'p-low', due: 'June 5, 2024', projectIds: ['pr-personal'], group: 'Later', sortIndex: 0, description: '' },
+  { id: '8', name: 'Learn Next.js', checked: false, statusId: 's-not-started', priorityId: 'p-low', due: 'June 10, 2024', projectIds: ['pr-personal'], group: 'Later', sortIndex: 1, description: '' },
+  { id: '9', name: 'Plan summer trip', checked: false, statusId: 's-not-started', priorityId: 'p-medium', due: 'June 15, 2024', projectIds: ['pr-personal'], group: 'Later', sortIndex: 2, description: '' },
 ];
 
 const newId = (prefix: string) =>
@@ -88,6 +97,8 @@ export function createDraftTask(
     due: '',
     projectIds: [],
     group,
+    sortIndex: 0,
+    description: '',
   };
 }
 

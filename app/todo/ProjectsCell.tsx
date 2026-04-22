@@ -12,7 +12,7 @@ type ProjectsCellProps = {
   projectIds: string[];
   projectOptions: ProjectOption[];
   onChange: (ids: string[]) => void;
-  onCreateOption: (label: string) => string;
+  onCreateOption: (label: string) => string | Promise<string>;
   className?: string;
 };
 
@@ -71,10 +71,10 @@ export function ProjectsCell({
     }
   };
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     const label = createInput.trim();
     if (!label) return;
-    const newId = onCreateOption(label);
+    const newId = await Promise.resolve(onCreateOption(label));
     setCreateInput('');
     if (!projectIds.includes(newId)) {
       onChange([...projectIds, newId]);
